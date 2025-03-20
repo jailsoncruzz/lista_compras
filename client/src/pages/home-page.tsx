@@ -17,7 +17,7 @@ import { insertListSchema, insertItemSchema } from "@shared/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { LogOut, Plus, Trash2, Edit2 } from "lucide-react";
+import { LogOut, Eye, Trash2, Edit2 } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { useState } from "react";
@@ -194,7 +194,7 @@ export default function HomePage() {
                       setIsItemDialogOpen(true);
                     }}
                   >
-                    <Plus className="h-4 w-4" />
+                    <Eye className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -210,6 +210,10 @@ export default function HomePage() {
                   {format(new Date(list.date), "dd/MM/yyyy")}
                 </p>
                 <p className="text-sm mb-4">{list.description}</p>
+                <div className="flex justify-between text-sm">
+                  <span>Items: {items.filter(item => item.listId === list.id).length}</span>
+                  <span>Total: R$ {calculateTotal(items.filter(item => item.listId === list.id)).toFixed(2)}</span>
+                </div>
               </CardContent>
             </Card>
           ))}
