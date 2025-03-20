@@ -80,7 +80,7 @@ export class Back4AppStorage implements IStorage {
       return {
         id: parseUser.get("localId"),
         username: parseUser.get("username"),
-        password: parseUser.get("password"),
+        password: parseUser.get("hashedPassword"),
       };
     } catch (error) {
       console.error("Error getting user:", error);
@@ -98,7 +98,7 @@ export class Back4AppStorage implements IStorage {
       return {
         id: user.get("localId"),
         username: user.get("username"),
-        password: user.get("password"),
+        password: user.get("hashedPassword"),
       };
     } catch (error) {
       console.error("Error getting user by username:", error);
@@ -116,7 +116,9 @@ export class Back4AppStorage implements IStorage {
     user.set("localId", nextId);
     user.set("username", insertUser.username);
     user.set("password", insertUser.password);
-    await user.save(null, { useMasterKey: true });
+    // Salvar senha criptografada em um campo separado para nossa aplicação
+    user.set("hashedPassword", insertUser.password);
+    await user.signUp();
 
     return {
       id: nextId,
