@@ -153,11 +153,12 @@ export default function HomePage() {
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {lists?.map((list: any) => {
-            const { data: items } = useQuery({
+            const { data: items = [] } = useQuery({
               queryKey: [`/api/lists/${list.id}/items`],
-            });
+              enabled: !!list.id,
+            }) || {};
 
-            const total = calculateTotal(items);
+            const total = calculateTotal(itemss);
 
             return (
               <Card key={list.id}>
