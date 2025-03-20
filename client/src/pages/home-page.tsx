@@ -33,23 +33,15 @@ export default function HomePage() {
     queryFn: () => apiRequest("GET", "/api/lists").then((res) => res.json()),
   });
 
-  // Fetch items per list
+  // Fetch all items for selected list
   const { data: items = [] } = useQuery({
-    queryKey: ["/api/items"],
-    queryFn: async () => {
-      const allItems = [];
-      for (const list of lists) {
-        const listItems = await apiRequest("GET", `/api/lists/${list.id}/items`).then((res) => res.json());
-        allItems.push(...listItems);
-      }
-      return allItems;
-    },
-    enabled: lists.length > 0,
+    queryKey: [`/api/lists/${selectedList?.id}/items`],
+    queryFn: () =>
+      selectedList
+        ? apiRequest("GET", `/api/lists/${selectedList.id}/items`).then((res) => res.json())
+        : Promise.resolve([]),
+    enabled: !!selectedList,
   });
-
-  const getListItems = (listId: number) => {
-    return items.filter(item => item.listId === listId);
-  };
 
   // Mutations
   const createListMutation = useMutation({
@@ -216,8 +208,8 @@ export default function HomePage() {
                 </p>
                 <p className="text-sm mb-4">{list.description}</p>
                 <div className="flex justify-between text-sm">
-                  <span>Items: {getListItems(list.id).length}</span>
-                  <span>Total: R$ {calculateTotal(getListItems(list.id)).toFixed(2)}</span>
+                  <span>Items: {items.filter(item => item.listId === list.id).length}</span>
+                  <span>Total: R$ {calculateTotal(items.filter(item => item.listId === list.id)).toFixed(2)}</span>
                 </div>
               </CardContent>
             </Card>
