@@ -22,10 +22,21 @@ import { format } from "date-fns";
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
-  const { data: lists } = useQuery({
+
+  // Fetch all lists
+  const { data: lists = [] } = useQuery({
     queryKey: ["/api/lists"],
+    queryFn: () => apiRequest("GET", "/api/lists").then((res) => res.json()),
   });
 
+  // Fetch all items for all lists
+  const { data: allItems = [] } = useQuery({
+    queryKey: ["/api/items"],
+    queryFn: () =>
+      apiRequest("GET", "/api/items").then((res) => res.json()),
+  });
+
+  // Mutations
   const createListMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest("POST", "/api/lists", data);
@@ -83,7 +94,7 @@ export default function HomePage() {
   });
 
   const calculateTotal = (items: any[]) => {
-    return items?.reduce((total, item) => total + (item.price * item.quantity), 0) || 0;
+    return items?.reduce((total, item) => total + item.price * item.quantity, 0) || 0;
   };
 
   return (
@@ -103,7 +114,6 @@ export default function HomePage() {
           </div>
         </div>
       </header>
-
       <main className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Suas Listas</h2>
@@ -150,16 +160,11 @@ export default function HomePage() {
             </DialogContent>
           </Dialog>
         </div>
-
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {lists?.map((list: any) => {
-            const { data: items = [] } = useQuery({
-              queryKey: [`list-items-${list.id}`],
-              enabled: !!list.id,
-              queryFn: () => apiRequest("GET", `/api/lists/${list.id}/items`).then(res => res.json())
-            }) || {};
-            
-            const total = calculateTotal(itemss);
+            // Filter items for the current list
+            const items = allItems.filter((item: any) => item.listId === list.id);
+            const total = calculateTotal(items);
 
             return (
               <Card key={list.id}>
@@ -223,7 +228,6 @@ export default function HomePage() {
                     {format(new Date(list.date), "dd/MM/yyyy")}
                   </p>
                   <p className="text-sm mb-4">{list.description}</p>
-
                   <div className="space-y-4">
                     {items?.map((item: any) => (
                       <div key={item.id} className="flex items-center justify-between">
@@ -302,7 +306,6 @@ export default function HomePage() {
                         </div>
                       </div>
                     ))}
-
                     <div className="pt-4 border-t">
                       <div className="flex justify-between items-center">
                         <p className="font-medium">Total</p>
