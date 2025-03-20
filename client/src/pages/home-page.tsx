@@ -156,8 +156,9 @@ export default function HomePage() {
             const { data: items = [] } = useQuery({
               queryKey: [`/api/lists/${list.id}/items`],
               enabled: !!list.id,
-            }) || {};
-
+              queryFn: () => apiRequest("GET", `/api/lists/${list.id}/items`).then(res => res.json())
+            });
+            
             const total = calculateTotal(itemss);
 
             return (
