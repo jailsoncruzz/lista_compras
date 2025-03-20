@@ -33,7 +33,7 @@ export default function HomePage() {
     queryFn: () => apiRequest("GET", "/api/lists").then((res) => res.json()),
   });
 
-  // Fetch all items for selected list
+  // Fetch items for selected list
   const { data: items = [] } = useQuery({
     queryKey: [`/api/lists/${selectedList?.id}/items`],
     queryFn: () =>
@@ -208,8 +208,8 @@ export default function HomePage() {
                 </p>
                 <p className="text-sm mb-4">{list.description}</p>
                 <div className="flex justify-between text-sm">
-                  <span>Items: {items.filter(item => item.listId === list.id).length}</span>
-                  <span>Total: R$ {calculateTotal(items.filter(item => item.listId === list.id)).toFixed(2)}</span>
+                  <span>Items: {list.id === selectedList?.id ? items.length : 0}</span>
+                  <span>Total: R$ {list.id === selectedList?.id ? calculateTotal(items).toFixed(2) : '0.00'}</span>
                 </div>
               </CardContent>
             </Card>
