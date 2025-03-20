@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,9 +20,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { LogOut, Plus, Trash2, Edit2 } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { useState } from "react";
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
+  const [selectedList, setSelectedList] = useState<any>(null);
+  const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
 
   // Fetch all lists
   const { data: lists = [] } = useQuery({
@@ -29,11 +34,14 @@ export default function HomePage() {
     queryFn: () => apiRequest("GET", "/api/lists").then((res) => res.json()),
   });
 
-  // Fetch all items for all lists
-  const { data: allItems = [] } = useQuery({
-    queryKey: ["/api/items"],
+  // Fetch all items for selected list
+  const { data: items = [] } = useQuery({
+    queryKey: [`/api/lists/${selectedList?.id}/items`],
     queryFn: () =>
-      apiRequest("GET", "/api/items").then((res) => res.json()),
+      selectedList
+        ? apiRequest("GET", `/api/lists/${selectedList.id}/items`).then((res) => res.json())
+        : Promise.resolve([]),
+    enabled: !!selectedList,
   });
 
   // Mutations
@@ -53,35 +61,39 @@ export default function HomePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/lists"] });
+      setSelectedList(null);
     },
   });
 
   const createItemMutation = useMutation({
-    mutationFn: async ({ listId, data }: { listId: number; data: any }) => {
-      const res = await apiRequest("POST", `/api/lists/${listId}/items`, data);
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", `/api/lists/${selectedList.id}/items`, data);
       return res.json();
     },
-    onSuccess: (_, { listId }) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/lists/${listId}/items`] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/lists/${selectedList.id}/items`] });
+      itemForm.reset();
     },
   });
 
   const updateItemMutation = useMutation({
-    mutationFn: async ({ listId, itemId, data }: { listId: number; itemId: number; data: any }) => {
-      const res = await apiRequest("PATCH", `/api/lists/${listId}/items/${itemId}`, data);
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("PATCH", `/api/lists/${selectedList.id}/items/${editingItem.id}`, data);
       return res.json();
     },
-    onSuccess: (_, { listId }) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/lists/${listId}/items`] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/lists/${selectedList.id}/items`] });
+      setEditingItem(null);
+      itemForm.reset();
     },
   });
 
   const deleteItemMutation = useMutation({
-    mutationFn: async ({ listId, itemId }: { listId: number; itemId: number }) => {
-      await apiRequest("DELETE", `/api/lists/${listId}/items/${itemId}`);
+    mutationFn: async (itemId: number) => {
+      await apiRequest("DELETE", `/api/lists/${selectedList.id}/items/${itemId}`);
     },
-    onSuccess: (_, { listId }) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/lists/${listId}/items`] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/lists/${selectedList.id}/items`] });
     },
   });
 
@@ -95,6 +107,14 @@ export default function HomePage() {
 
   const calculateTotal = (items: any[]) => {
     return items?.reduce((total, item) => total + item.price * item.quantity, 0) || 0;
+  };
+
+  const handleItemSubmit = (data: any) => {
+    if (editingItem) {
+      updateItemMutation.mutate(data);
+    } else {
+      createItemMutation.mutate(data);
+    }
   };
 
   return (
@@ -161,164 +181,131 @@ export default function HomePage() {
           </Dialog>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {lists?.map((list: any) => {
-            // Filter items for the current list
-            const items = allItems.filter((item: any) => item.listId === list.id);
-            const total = calculateTotal(items);
+          {lists?.map((list: any) => (
+            <Card key={list.id}>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>{list.name}</CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setSelectedList(list);
+                      setIsItemDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteListMutation.mutate(list.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-2">
+                  {format(new Date(list.date), "dd/MM/yyyy")}
+                </p>
+                <p className="text-sm mb-4">{list.description}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </main>
 
-            return (
-              <Card key={list.id}>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>{list.name}</CardTitle>
+      <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{selectedList?.name} - Itens</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <form
+              onSubmit={itemForm.handleSubmit(handleItemSubmit)}
+              className="grid grid-cols-4 gap-4"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome do Item</Label>
+                <Input
+                  id="name"
+                  {...itemForm.register("name")}
+                  defaultValue={editingItem?.name}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="price">Preço</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  {...itemForm.register("price", { valueAsNumber: true })}
+                  defaultValue={editingItem?.price}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Quantidade</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  {...itemForm.register("quantity", { valueAsNumber: true })}
+                  defaultValue={editingItem?.quantity}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button type="submit" className="w-full">
+                  {editingItem ? "Salvar" : "Adicionar"}
+                </Button>
+              </div>
+            </form>
+
+            <div className="space-y-4">
+              {items?.map((item: any) => (
+                <div key={item.id} className="flex items-center justify-between border-b pb-2">
+                  <div>
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.quantity}x R$ {item.price.toFixed(2)}
+                    </p>
+                  </div>
                   <div className="flex gap-2">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Adicionar Item</DialogTitle>
-                        </DialogHeader>
-                        <form
-                          onSubmit={itemForm.handleSubmit((data) =>
-                            createItemMutation.mutate({ listId: list.id, data })
-                          )}
-                          className="space-y-4"
-                        >
-                          <div className="space-y-2">
-                            <Label htmlFor="name">Nome do Item</Label>
-                            <Input id="name" {...itemForm.register("name")} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="price">Preço</Label>
-                            <Input
-                              id="price"
-                              type="number"
-                              step="0.01"
-                              {...itemForm.register("price", { valueAsNumber: true })}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="quantity">Quantidade</Label>
-                            <Input
-                              id="quantity"
-                              type="number"
-                              {...itemForm.register("quantity", { valueAsNumber: true })}
-                            />
-                          </div>
-                          <Button type="submit" className="w-full">
-                            Adicionar Item
-                          </Button>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => deleteListMutation.mutate(list.id)}
+                      onClick={() => {
+                        setEditingItem(item);
+                        itemForm.reset({
+                          name: item.name,
+                          price: item.price,
+                          quantity: item.quantity,
+                        });
+                      }}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteItemMutation.mutate(item.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {format(new Date(list.date), "dd/MM/yyyy")}
-                  </p>
-                  <p className="text-sm mb-4">{list.description}</p>
-                  <div className="space-y-4">
-                    {items?.map((item: any) => (
-                      <div key={item.id} className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{item.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {item.quantity}x R$ {item.price.toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Editar Item</DialogTitle>
-                              </DialogHeader>
-                              <form
-                                onSubmit={itemForm.handleSubmit((data) =>
-                                  updateItemMutation.mutate({
-                                    listId: list.id,
-                                    itemId: item.id,
-                                    data,
-                                  })
-                                )}
-                                className="space-y-4"
-                              >
-                                <div className="space-y-2">
-                                  <Label htmlFor="name">Nome do Item</Label>
-                                  <Input
-                                    id="name"
-                                    defaultValue={item.name}
-                                    {...itemForm.register("name")}
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="price">Preço</Label>
-                                  <Input
-                                    id="price"
-                                    type="number"
-                                    step="0.01"
-                                    defaultValue={item.price}
-                                    {...itemForm.register("price", { valueAsNumber: true })}
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="quantity">Quantidade</Label>
-                                  <Input
-                                    id="quantity"
-                                    type="number"
-                                    defaultValue={item.quantity}
-                                    {...itemForm.register("quantity", { valueAsNumber: true })}
-                                  />
-                                </div>
-                                <Button type="submit" className="w-full">
-                                  Salvar Alterações
-                                </Button>
-                              </form>
-                            </DialogContent>
-                          </Dialog>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              deleteItemMutation.mutate({
-                                listId: list.id,
-                                itemId: item.id,
-                              })
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    <div className="pt-4 border-t">
-                      <div className="flex justify-between items-center">
-                        <p className="font-medium">Total</p>
-                        <p className="font-bold">R$ {total.toFixed(2)}</p>
-                      </div>
-                    </div>
+                </div>
+              ))}
+              {items.length > 0 && (
+                <div className="pt-4 border-t">
+                  <div className="flex justify-between items-center">
+                    <p className="font-medium">Total</p>
+                    <p className="font-bold">R$ {calculateTotal(items).toFixed(2)}</p>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </main>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
