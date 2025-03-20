@@ -33,15 +33,14 @@ export default function HomePage() {
     queryFn: () => apiRequest("GET", "/api/lists").then((res) => res.json()),
   });
 
-  // Fetch items for selected list
-  const { data: items = [] } = useQuery({
-    queryKey: [`/api/lists/${selectedList?.id}/items`],
-    queryFn: () =>
-      selectedList
-        ? apiRequest("GET", `/api/lists/${selectedList.id}/items`).then((res) => res.json())
-        : Promise.resolve([]),
-    enabled: !!selectedList,
-  });
+  // Fetch items per list
+  const getListItems = (listId: number) => {
+    const { data: items = [] } = useQuery({
+      queryKey: [`/api/lists/${listId}/items`],
+      queryFn: () => apiRequest("GET", `/api/lists/${listId}/items`).then((res) => res.json()),
+    });
+    return items;
+  };
 
   // Mutations
   const createListMutation = useMutation({
@@ -208,8 +207,8 @@ export default function HomePage() {
                 </p>
                 <p className="text-sm mb-4">{list.description}</p>
                 <div className="flex justify-between text-sm">
-                  <span>Items: {list.id === selectedList?.id ? items.length : 0}</span>
-                  <span>Total: R$ {list.id === selectedList?.id ? calculateTotal(items).toFixed(2) : '0.00'}</span>
+                  <span>Items: {getListItems(list.id).length}</span>
+                  <span>Total: R$ {calculateTotal(getListItems(list.id)).toFixed(2)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -260,7 +259,7 @@ export default function HomePage() {
               </div>
             </form>
             <div className="space-y-4">
-              {items?.map((item: any) => (
+              {selectedList && getListItems(selectedList.id)?.map((item: any) => (
                 <div key={item.id} className="flex items-center justify-between border-b pb-2">
                   <div>
                     <p className="font-medium">{item.name}</p>
