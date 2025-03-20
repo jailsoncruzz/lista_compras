@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +16,7 @@ import { insertListSchema, insertItemSchema } from "@shared/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { LogOut, Eye, Trash2, Edit2 } from "lucide-react";
+import { LogOut, Plus, Eye, Trash2, Edit2 } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { useState } from "react";
@@ -149,9 +148,7 @@ export default function HomePage() {
                 <DialogTitle>Criar Nova Lista</DialogTitle>
               </DialogHeader>
               <form
-                onSubmit={listForm.handleSubmit((data) =>
-                  createListMutation.mutate(data)
-                )}
+                onSubmit={listForm.handleSubmit((data) => createListMutation.mutate(data))}
                 className="space-y-4"
               >
                 <div className="space-y-2">
@@ -219,7 +216,6 @@ export default function HomePage() {
           ))}
         </div>
       </main>
-
       <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -263,7 +259,6 @@ export default function HomePage() {
                 </Button>
               </div>
             </form>
-
             <div className="space-y-4">
               {items?.map((item: any) => (
                 <div key={item.id} className="flex items-center justify-between border-b pb-2">
