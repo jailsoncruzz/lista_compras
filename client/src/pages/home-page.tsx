@@ -33,14 +33,15 @@ export default function HomePage() {
     queryFn: () => apiRequest("GET", "/api/lists").then((res) => res.json()),
   });
 
-  // Fetch items per list
-  const getListItems = (listId: number) => {
-    const { data: items = [] } = useQuery({
-      queryKey: [`/api/lists/${listId}/items`],
-      queryFn: () => apiRequest("GET", `/api/lists/${listId}/items`).then((res) => res.json()),
-    });
-    return items;
-  };
+  // Fetch items for the selected list
+  const { data: items = [] } = useQuery({
+    queryKey: [`/api/lists/${selectedList?.id}/items`],
+    queryFn: () =>
+      selectedList
+        ? apiRequest("GET", `/api/lists/${selectedList.id}/items`).then((res) => res.json())
+        : Promise.resolve([]),
+    enabled: !!selectedList,
+  });
 
   // Mutations
   const createListMutation = useMutation({
@@ -70,19 +71,21 @@ export default function HomePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/lists/${selectedList.id}/items`] });
-      itemForm.reset();
     },
   });
 
   const updateItemMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("PATCH", `/api/lists/${selectedList.id}/items/${editingItem.id}`, data);
+      const res = await apiRequest(
+        "PATCH",
+        `/api/lists/${selectedList.id}/items/${editingItem.id}`,
+        data
+      );
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/lists/${selectedList.id}/items`] });
       setEditingItem(null);
-      itemForm.reset();
     },
   });
 
@@ -177,42 +180,49 @@ export default function HomePage() {
           </Dialog>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {lists?.map((list: any) => (
-            <Card key={list.id}>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>{list.name}</CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setSelectedList(list);
-                      setIsItemDialogOpen(true);
-                    }}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteListMutation.mutate(list.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-2">
-                  {format(new Date(list.date), "dd/MM/yyyy")}
-                </p>
-                <p className="text-sm mb-4">{list.description}</p>
-                <div className="flex justify-between text-sm">
-                  <span>Items: {getListItems(list.id).length}</span>
-                  <span>Total: R$ {calculateTotal(getListItems(list.id)).toFixed(2)}</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {lists?.map((list: any) => {
+            // Filter items for the current list
+  
+            const listItems = items.filter((item: any) => item.listId === list.id);
+            const total = calculateTotal(listItems);
+
+            return (
+              <Card key={list.id}>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>{list.name}</CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setSelectedList(list);
+                        setIsItemDialogOpen(true);
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteListMutation.mutate(list.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {format(new Date(list.date), "dd/MM/yyyy")}
+                  </p>
+                  <p className="text-sm mb-4">{list.description}</p>
+                  <div className="flex justify-between text-sm">
+                    <span>Items: {listItems.length}</span>
+                    <span>Total: R$ {total.toFixed(2)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </main>
       <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
@@ -259,44 +269,49 @@ export default function HomePage() {
               </div>
             </form>
             <div className="space-y-4">
-              {selectedList && getListItems(selectedList.id)?.map((item: any) => (
-                <div key={item.id} className="flex items-center justify-between border-b pb-2">
-                  <div>
-                    <p className="font-medium">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.quantity}x R$ {item.price.toFixed(2)}
-                    </p>
+              {/* Show only items for the selected list */}
+              {items
+                .filter((item: any) => item.listId === selectedList?.id)
+                .map((item: any) => (
+                  <div key={item.id} className="flex items-center justify-between border-b pb-2">
+                    <div>
+                      <p className="font-medium">{item.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.quantity}x R$ {item.price.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setEditingItem(item);
+                          itemForm.reset({
+                            name: item.name,
+                            price: item.price,
+                            quantity: item.quantity,
+                          });
+                        }}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteItemMutation.mutate(item.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setEditingItem(item);
-                        itemForm.reset({
-                          name: item.name,
-                          price: item.price,
-                          quantity: item.quantity,
-                        });
-                      }}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteItemMutation.mutate(item.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                ))}
               {items.length > 0 && (
                 <div className="pt-4 border-t">
                   <div className="flex justify-between items-center">
                     <p className="font-medium">Total</p>
-                    <p className="font-bold">R$ {calculateTotal(items).toFixed(2)}</p>
+                    <p className="font-bold">
+                      R$ {calculateTotal(items.filter((item: any) => item.listId === selectedList?.id)).toFixed(2)}
+                    </p>
                   </div>
                 </div>
               )}
