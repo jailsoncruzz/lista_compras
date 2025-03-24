@@ -55,3 +55,21 @@ export const queryClient = new QueryClient({
     },
   },
 });
+import { QueryClient } from "@tanstack/react-query";
+
+const BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://your-repl-name.your-username.repl.co'
+  : '';
+
+export const apiRequest = (method: string, path: string, body?: any) => {
+  return fetch(`${BASE_URL}${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: 'include'
+  });
+};
+
+export const queryClient = new QueryClient();
