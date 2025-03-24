@@ -84,3 +84,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   return httpServer;
 }
+import { Express } from "express";
+
+export function setupRoutes(app: Express) {
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok' });
+  });
+}

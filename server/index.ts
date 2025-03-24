@@ -74,3 +74,20 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
   });
 })();
+import express from "express";
+import session from "express-session";
+import { setupAuth } from "./auth";
+import { setupRoutes } from "./routes";
+import { setupVite } from "./vite";
+
+const app = express();
+const port = process.env.PORT || 5000;
+
+app.use(express.json());
+setupAuth(app);
+setupRoutes(app);
+setupVite(app);
+
+app.listen(port, () => {
+  console.log(`[express] serving on port ${port}`);
+});

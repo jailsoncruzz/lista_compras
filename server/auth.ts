@@ -117,3 +117,17 @@ export function setupAuth(app: Express) {
     res.json(req.user);
   });
 }
+import { Express } from "express";
+import passport from "passport";
+import session from "express-session";
+
+export function setupAuth(app: Express) {
+  app.use(session({
+    secret: 'your-secret-key',
+    resave: false,
+    saveUninitialized: false
+  }));
+  
+  app.use(passport.initialize());
+  app.use(passport.session());
+}
