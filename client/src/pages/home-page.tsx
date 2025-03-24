@@ -22,6 +22,7 @@ import { format } from "date-fns";
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
+  const [selectedList, setSelectedList] = useState<any>(null);
 
   // Fetch all lists
   const { data: lists = [] } = useQuery({
@@ -29,10 +30,11 @@ export default function HomePage() {
     queryFn: () => apiRequest("GET", "/api/lists").then((res) => res.json()),
   });
 
-  // Fetch all items for all lists
-  const { data: allItems = [] } = useQuery({
-    queryKey: ["/api/items"],
-    queryFn: () => apiRequest("GET", "/api/items").then((res) => res.json()),
+  // Fetch items for selected list
+  const { data: listItems = [] } = useQuery({
+    queryKey: [`/api/lists/${selectedList?.id}/items`],
+    queryFn: () => apiRequest("GET", `/api/lists/${selectedList.id}/items`).then((res) => res.json()),
+    enabled: !!selectedList,
   });
 
   // Mutations
@@ -137,13 +139,81 @@ export default function HomePage() {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>{list.name}</CardTitle>
                   <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {}}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <Dialog open={selectedList?.id === list.id} onOpenChange={(open) => setSelectedList(open ? list : null)}>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Lista: {list.name}</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <form onSubmit={(e) => {
+                            e.preventDefault();
+                            const form = e.target as HTMLFormElement;
+                            const formData = new FormData(form);
+                            const item = {
+                              name: formData.get('name'),
+                              price: parseFloat(formData.get('price') as string),
+                              quantity: parseInt(formData.get('quantity') as string)
+                            };
+                            apiRequest("POST", `/api/lists/${list.id}/items`, item)
+                              .then(() => {
+                                queryClient.invalidateQueries({ queryKey: [`/api/lists/${list.id}/items`] });
+                                form.reset();
+                              });
+                          }} className="space-y-4">
+                            <div className="grid grid-cols-3 gap-4">
+                              <div>
+                                <Label htmlFor="name">Nome</Label>
+                                <Input id="name" name="name" required />
+                              </div>
+                              <div>
+                                <Label htmlFor="price">Preço</Label>
+                                <Input id="price" name="price" type="number" step="0.01" required />
+                              </div>
+                              <div>
+                                <Label htmlFor="quantity">Quantidade</Label>
+                                <Input id="quantity" name="quantity" type="number" defaultValue="1" required />
+                              </div>
+                            </div>
+                            <Button type="submit" className="w-full">Adicionar Item</Button>
+                          </form>
+                          <div className="space-y-4">
+                            {listItems?.map((item: any) => (
+                              <div key={item.id} className="flex items-center justify-between border-b pb-2">
+                                <div>
+                                  <p className="font-medium">{item.name}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Quantidade: {item.quantity}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-medium">
+                                    R$ {(item.price * item.quantity).toFixed(2)}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    R$ {item.price.toFixed(2)} cada
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                            {listItems.length > 0 && (
+                              <div className="pt-4 border-t">
+                                <div className="flex justify-between items-center">
+                                  <p className="font-medium">Total</p>
+                                  <p className="font-bold">
+                                    R$ {calculateTotal(listItems).toFixed(2)}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                     <Button
                       variant="ghost"
                       size="icon"
