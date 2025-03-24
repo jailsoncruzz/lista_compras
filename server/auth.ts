@@ -76,10 +76,6 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      if (!req.body.username || !req.body.password) {
-        return res.status(400).json({ message: "Username e senha são obrigatórios" });
-      }
-      
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
         return res.status(400).json({ message: "Usuário já existe" });
@@ -91,13 +87,11 @@ export function setupAuth(app: Express) {
       });
 
       req.login(user, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Erro ao criar usuário" });
-        }
-        res.status(201).json({ id: user.id, username: user.username });
+        if (err) return next(err);
+        res.status(201).json(user);
       });
     } catch (err) {
-      res.status(500).json({ message: "Erro interno do servidor" });
+      next(err);
     }
   });
 
@@ -116,18 +110,4 @@ export function setupAuth(app: Express) {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     res.json(req.user);
   });
-}
-import { Express } from "express";
-import passport from "passport";
-import session from "express-session";
-
-export function setupAuth(app: Express) {
-  app.use(session({
-    secret: 'your-secret-key',
-    resave: false,
-    saveUninitialized: false
-  }));
-  
-  app.use(passport.initialize());
-  app.use(passport.session());
 }
