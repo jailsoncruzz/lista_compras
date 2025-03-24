@@ -33,22 +33,12 @@ export default function HomePage() {
     queryFn: () => apiRequest("GET", "/api/lists").then((res) => res.json()),
   });
 
-  // Fetch items per list
-  const { data: items = [] } = useQuery({
-    queryKey: ["/api/items"],
-    queryFn: async () => {
-      const allItems = [];
-      for (const list of lists) {
-        const listItems = await apiRequest("GET", `/api/lists/${list.id}/items`).then((res) => res.json());
-        allItems.push(...listItems);
-      }
-      return allItems;
-    },
-    enabled: lists.length > 0,
-  });
-
   const getListItems = (listId: number) => {
-    return items.filter(item => item.listId === listId);
+    const { data: items = [] } = useQuery({
+      queryKey: [`/api/lists/${listId}/items`],
+      queryFn: () => apiRequest("GET", `/api/lists/${listId}/items`).then((res) => res.json()),
+    });
+    return items;
   };
 
   // Mutations
@@ -268,7 +258,7 @@ export default function HomePage() {
               </div>
             </form>
             <div className="space-y-4">
-              {items?.map((item: any) => (
+              {selectedList && getListItems(selectedList.id)?.map((item: any) => (
                 <div key={item.id} className="flex items-center justify-between border-b pb-2">
                   <div>
                     <p className="font-medium">{item.name}</p>
@@ -301,11 +291,11 @@ export default function HomePage() {
                   </div>
                 </div>
               ))}
-              {items.length > 0 && (
+              {selectedList && getListItems(selectedList.id).length > 0 && (
                 <div className="pt-4 border-t">
                   <div className="flex justify-between items-center">
                     <p className="font-medium">Total</p>
-                    <p className="font-bold">R$ {calculateTotal(items).toFixed(2)}</p>
+                    <p className="font-bold">R$ {calculateTotal(getListItems(selectedList.id)).toFixed(2)}</p>
                   </div>
                 </div>
               )}
