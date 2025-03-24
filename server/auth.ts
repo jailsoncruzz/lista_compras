@@ -76,6 +76,10 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
+      if (!req.body.username || !req.body.password) {
+        return res.status(400).json({ message: "Username e senha são obrigatórios" });
+      }
+      
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
         return res.status(400).json({ message: "Usuário já existe" });
@@ -87,11 +91,13 @@ export function setupAuth(app: Express) {
       });
 
       req.login(user, (err) => {
-        if (err) return next(err);
-        res.status(201).json(user);
+        if (err) {
+          return res.status(500).json({ message: "Erro ao criar usuário" });
+        }
+        res.status(201).json({ id: user.id, username: user.username });
       });
     } catch (err) {
-      next(err);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
