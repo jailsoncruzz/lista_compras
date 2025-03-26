@@ -1,4 +1,4 @@
-import Parse from "parse/node";
+import Parse from "parse";
 import session from "express-session";
 import { User, InsertUser, ShoppingList, ListItem } from "@shared/schema";
 import { IStorage } from "./storage-interface";
